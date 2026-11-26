@@ -1,0 +1,29 @@
+# Ye file company ki har repo me lagti hai. Isme kuch edit karne ki zaroorat nahi.
+# Saari logic central repo (__ORG__/perf-pipeline) me hai; wahan update hone par yahan apne aap lagta hai.
+name: PR Performance Test
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened, labeled]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: perf-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  perf:
+    # PR description me ```perf block ho (ya `perf-test` label) tabhi chalta hai, warna skip.
+    if: >
+      (contains(github.event.pull_request.labels.*.name, 'perf-test') ||
+       contains(github.event.pull_request.body, '```perf')) &&
+      (github.event.action != 'labeled' || github.event.label.name == 'perf-test')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: __ORG__/perf-pipeline@v1
+        with:
+          slack-webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
