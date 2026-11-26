@@ -1,57 +1,65 @@
 # perf-pipeline (central)
 
-PR par JMeter load test + Clinic.js profiling chalata hai, aur result GitHub Actions Summary, 2 artifacts
-(`jmeter-html-report`, `clinic-cpu-report`) aur Slack me deta hai.
+Runs a JMeter load test and Clinic.js profiling on a pull request, and publishes the result to the GitHub Actions
+job summary, two artifacts (`jmeter-html-report`, `clinic-cpu-report`) and Slack.
 
-## Developer ke liye (sirf itna)
-1. PR description me `perf` block likho (PR template me example hai):
-   ```perf
-   - path: /api/products
-     method: GET
-     users: 50
-     ramp_up: 10              # sec, default 10
-     duration: 60             # sec, 5-600
-     max_avg_response_time: 300   # ms, default 500
-     max_error_rate: 1            # %, default 1
-     # optional: headers: {Authorization: "Bearer x"}, body: {...}
-   ```
-2. PR raise karo. Test apne aap chalta hai. Block na ho to kuch nahi chalta.
+## For developers
+Add a `perf` block to the PR description (the PR template contains an example) and raise the PR.
+The test runs automatically, and again every time the description is edited or new commits are pushed.
+Without a `perf` block nothing runs.
 
-Jitni APIs chahiye utni likh sakte ho (default max 20, total users max 500).
-App `PORT` env var par listen kare. Start command auto-detect hota hai (Next.js: `next start`; baaki: `scripts.start` agar `node ...` se shuru ho, warna `main`).
-Alag start command ho to block ki jagah is format me likho:
+````
+```perf
+- path: /api/products
+  method: GET
+  users: 50
+  ramp_up: 10                  # seconds, default 10
+  duration: 60                 # seconds, 5-600
+  max_avg_response_time: 300   # ms, default 500
+  max_error_rate: 1            # %, default 1
+  # optional: headers: {Authorization: "Bearer x"}, body: {...}
+```
+````
+
+List as many APIs as you need (default maximum 20 APIs and 500 total users).
+The app must listen on the `PORT` environment variable. The start command is detected automatically
+(Next.js: `next start`; otherwise `scripts.start` if it starts with `node`, or `main`).
+To set a custom start command use the object form:
+
+````
 ```perf
 app:
   start: node dist/server.js
 apis:
   - path: /api/products
 ```
+````
 
-## Owner / Admin ke liye: ek baar ka setup
-1. Org me ye repo banao: `perf-pipeline` (is folder ka poora content). Tag banao: `git tag v1 && git push origin v1`.
-2. Repo Settings, Actions, General, Access: **Accessible from repositories in the organization**.
-3. Org Settings, Secrets and variables, Actions: secret `SLACK_WEBHOOK_URL` banao (Repository access: All repositories ya jo chaho).
-4. Saari repos me caller workflow lagao:
+## For the owner / admin: one-time setup
+1. Create the repository `perf-pipeline` in the organization with the content of this folder, then tag it: `git tag v1 && git push origin v1`.
+2. Repository Settings, Actions, General, Access: choose **Accessible from repositories in the organization**.
+3. Organization Settings, Secrets and variables, Actions: create the secret `SLACK_WEBHOOK_URL` and give it access to the repositories.
+4. Install the caller workflow in all repositories:
    ```bash
-   ./rollout/install.sh <org> --dry-run     # pehle dekho kin repos me lagega
-   ./rollout/install.sh <org>               # PRs khulengi; merge karte hi pipeline active
+   ./rollout/install.sh <org> --dry-run     # preview which repositories will get it
+   ./rollout/install.sh <org>               # opens a PR in each repository; the pipeline is active once it is merged
    ```
-   (GitHub Enterprise ho to org "required workflows"/rulesets se bhi laga sakte ho; tab ye PRs nahi chahiye.)
+   With GitHub Enterprise you can use organization rulesets (required workflows) instead of these PRs.
 
 ## Maintenance
-- **Update/bug fix:** is repo me change karo, test karo, phir `git tag -f v1 && git push -f origin v1`. Sab repos ko apne aap lag jata hai (callers `@v1` use karte hain).
-- **Versions pinned hain:** Clinic.js 13.0.0, JMeter 5.6.3 (`action.yml` me), Node 20. Badalna ho to wahin badlo.
-- **Kuch toote to kahan dekhen:** failed run me red step ka log. Config galat ho to Slack me ⚠️ CONFIG ERROR aur wajah aati hai.
-- Koi external service ya server nahi hai. Sab kuch GitHub Actions me chalta hai.
+- **Updates and bug fixes:** change this repository, test it, then move the tag: `git tag -f v1 && git push -f origin v1`. All repositories pick it up automatically because the callers use `@v1`.
+- **Pinned versions:** Clinic.js 13.0.0, JMeter 5.6.3 (in `action.yml`), Node 20.
+- **When something breaks:** open the failed run and read the log of the red step. A wrong configuration is reported in Slack as CONFIG ERROR together with the reason.
+- There is no external service or server; everything runs in GitHub Actions.
 
-## Limits (developers ko batana)
-- Test GitHub runner par chalta hai: numbers PR ke beech tulna ke liye hain, production ke absolute numbers nahi.
-- DB/Redis/secrets chahiye wali apps ke liye us repo ke caller workflow me `services:`/`env:` add karne padte hain.
-- Fork se aayi PRs me secrets nahi milte, Slack wahan skip hota hai.
-- Har test Actions minutes use karta hai.
+## Limits (tell the developers)
+- Tests run on a GitHub-hosted runner, so the numbers are meant for comparing PRs, not as absolute production numbers.
+- Apps that need a database, Redis or secrets require `services:` / `env:` in the caller workflow of that repository.
+- PRs from forks do not receive secrets, so Slack is skipped for them.
+- Every test uses Actions minutes.
 
 ## Files
-- `action.yml`: poora pipeline (composite action)
-- `scripts/`: config parse, JMX generate, run, analyze, summary, Slack
-- `templates/`: har repo me lagne wali workflow aur PR template
-- `rollout/install.sh`: saari repos me ek saath lagane ki script
+- `action.yml`: the whole pipeline (composite action)
+- `scripts/`: config parsing, JMX generation, run, analysis, summary, Slack
+- `templates/`: the caller workflow and PR template installed in every repository
+- `rollout/install.sh`: installs them in all repositories at once

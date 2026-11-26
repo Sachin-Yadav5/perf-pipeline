@@ -1,4 +1,4 @@
-// Last step: thresholds cross hue ya koi error aaya to job ko fail karta hai (PR check red dikhe).
+// Last step: fails the job when a threshold is breached or an error occurred (so the PR check turns red).
 const { SUMMARY_FILE, readJson } = require('./common');
 
 const s = readJson(SUMMARY_FILE);

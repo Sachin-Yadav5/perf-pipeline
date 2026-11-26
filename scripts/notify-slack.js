@@ -1,8 +1,8 @@
-// Slack par notification bhejta hai (job summary jaisa layout). SLACK_WEBHOOK_URL na ho to sirf print karta hai (dry run).
+// Sends the Slack notification (same layout as the job summary). Without SLACK_WEBHOOK_URL it only prints the message (dry run).
 const { SUMMARY_FILE, readJson } = require('./common');
 
 const e = process.env;
-const s = readJson(SUMMARY_FILE) || { status: 'run_error', message: 'Pipeline ne summary nahi banayi; workflow logs dekho.', apis: [] };
+const s = readJson(SUMMARY_FILE) || { status: 'run_error', message: 'The pipeline did not produce a summary; check the workflow logs.', apis: [] };
 
 const icon = { passed: '✅', failed: '❌', config_error: '⚠️', run_error: '⚠️' }[s.status] || '⚠️';
 const label = { passed: 'PASSED', failed: 'FAILED', config_error: 'CONFIG ERROR', run_error: 'RUN ERROR' }[s.status] || s.status;
@@ -22,16 +22,16 @@ if (s.totals) {
   );
 }
 if (s.apis && s.apis.length) {
-  const MAX_LINES = 10; // zyada APIs hon to Slack message lamba na ho: failed pehle, baaki "+N more"
+  const MAX_LINES = 10; // keep the Slack message short for many APIs: failed first, the rest as "+N more"
   const sorted = [...s.apis].sort((x, y) => Number(x.passed) - Number(y.passed));
   for (const a of sorted.slice(0, MAX_LINES)) {
     L.push(
       a.samples
         ? `${a.passed ? '✅' : '❌'} \`${a.name}\` avg ${a.avg}ms (≤${a.limits.avg}) · p95 ${a.p95}ms · err ${a.errorRate}% (≤${a.limits.errorRate}%)`
-        : `❌ \`${a.name}\` koi request nahi gayi`
+        : `❌ \`${a.name}\` no requests were sent`
     );
   }
-  if (sorted.length > MAX_LINES) L.push(`_+${sorted.length - MAX_LINES} more APIs (details Job Summary me)_`);
+  if (sorted.length > MAX_LINES) L.push(`_+${sorted.length - MAX_LINES} more APIs (details in the job summary)_`);
   L.push('');
 }
 if (s.clinic) {
@@ -56,7 +56,7 @@ const text = L.join('\n');
 
 (async () => {
   if (!e.SLACK_WEBHOOK_URL) {
-    console.log('SLACK_WEBHOOK_URL set nahi hai, dry run:\n' + text);
+    console.log('SLACK_WEBHOOK_URL is not set, dry run:\n' + text);
     return;
   }
   const res = await fetch(e.SLACK_WEBHOOK_URL, {
@@ -66,4 +66,4 @@ const text = L.join('\n');
   });
   if (!res.ok) console.error(`Slack failed: ${res.status} ${await res.text()}`);
   else console.log('Slack notified');
-})().catch((err) => console.error('Slack error:', err.message)); // notification fail hone par job fail nahi hoga
+})().catch((err) => console.error('Slack error:', err.message)); // a failed notification does not fail the job

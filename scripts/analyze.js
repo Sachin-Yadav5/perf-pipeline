@@ -1,4 +1,4 @@
-// JMeter results.jtl (CSV) padhkar har API ke liye avg / p95 / error rate nikalta hai aur thresholds se compare karta hai.
+// Reads the JMeter results.jtl (CSV), computes avg / p95 / error rate per API and compares them with the thresholds.
 const fs = require('fs');
 const path = require('path');
 const { OUT, CONFIG_FILE, SUMMARY_FILE, readJson, writeJson } = require('./common');
@@ -33,7 +33,7 @@ const jtl = path.join(OUT, 'results.jtl');
 if (!fs.existsSync(jtl) || fs.statSync(jtl).size === 0) {
   writeJson(SUMMARY_FILE, {
     status: 'run_error',
-    message: 'Load test ke results nahi bane. App start nahi hui ya JMeter fail hua; workflow logs dekho.',
+    message: 'No load test results were produced. The app did not start or JMeter failed; check the workflow logs.',
     apis: [],
   });
   console.error('No JTL results');
@@ -56,7 +56,7 @@ const apis = cfg.apis.map((a) => {
   const s = byLabel[a.name] || [];
   const reasons = [];
   if (!s.length) {
-    return { name: a.name, users: a.users, samples: 0, passed: false, reasons: ['Koi request nahi gayi'], limits: limits(a) };
+    return { name: a.name, users: a.users, samples: 0, passed: false, reasons: ['No requests were sent'], limits: limits(a) };
   }
   const el = s.map((x) => x.elapsed).sort((p, q) => p - q);
   const avg = el.reduce((t, v) => t + v, 0) / el.length;
@@ -64,7 +64,7 @@ const apis = cfg.apis.map((a) => {
   const errorRate = (errors / s.length) * 100;
   let tMin = Infinity;
   let tMax = -Infinity;
-  for (const x of s) { // spread (...) lakhon samples par stack overflow deta hai, isliye loop
+  for (const x of s) { // a spread (...) over hundreds of thousands of samples overflows the stack, so use a loop
     if (x.ts < tMin) tMin = x.ts;
     if (x.ts + x.elapsed > tMax) tMax = x.ts + x.elapsed;
   }
@@ -90,7 +90,7 @@ function limits(a) {
   return { avg: a.max_avg_response_time, errorRate: a.max_error_rate };
 }
 
-// Overall JMeter totals (sirf configured APIs ke samples)
+// Overall JMeter totals (samples of the configured APIs only)
 const all = cfg.apis.flatMap((a) => byLabel[a.name] || []);
 const failed = all.filter((x) => !x.ok).length;
 const totals = {
@@ -107,6 +107,6 @@ readClinicMetrics(path.join(OUT, 'clinic')).then((clinic) => {
   console.log(`Analysis: ${status}`);
   console.log(` Totals: ${totals.requests} req, avg ${totals.avg}ms, failed ${totals.failed}`);
   if (clinic) console.log(` CPU avg/peak ${clinic.cpu.avg}/${clinic.cpu.peak}% | RSS avg/peak ${clinic.memory.avg}/${clinic.memory.peak} MB`);
-  else console.log(' Clinic metrics nahi mile');
+  else console.log(' Clinic metrics not found');
   apis.forEach((a) => console.log(` ${a.passed ? 'PASS' : 'FAIL'} ${a.name} avg=${a.avg}ms p95=${a.p95}ms err=${a.errorRate}% ${a.reasons.join('; ')}`));
 });

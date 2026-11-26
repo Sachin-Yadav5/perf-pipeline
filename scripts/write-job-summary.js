@@ -1,4 +1,4 @@
-// GitHub Actions run page ke "Summary" tab ke liye markdown likhta hai ($GITHUB_STEP_SUMMARY).
+// Writes the markdown for the "Summary" tab of the GitHub Actions run ($GITHUB_STEP_SUMMARY).
 const fs = require('fs');
 const { SUMMARY_FILE, readJson } = require('./common');
 

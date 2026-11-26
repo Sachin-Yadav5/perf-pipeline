@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Clinic.js isko tab chalata hai jab app port par listen karne lage ($PORT set hota hai).
+# Called by run.sh once the app is listening on $PORT.
 set -euo pipefail
 OUT=.perf/out
 jmeter -n \

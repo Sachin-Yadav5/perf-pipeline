@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Company ki saari Node.js/Next.js repos me caller workflow + PR template ki PR kholta hai (ek baar chalana hai).
+# Opens a PR in every Node.js/Next.js repo of the organization that adds the caller workflow and the PR template (run once).
 #
 # Usage:   ./rollout/install.sh <github-org> [--dry-run] [--only repo1,repo2]
-# Zaroori: gh CLI (gh auth login), git; chalane wale ke paas org repos me push/PR ka access ho.
+# Requires: gh CLI (gh auth login) and git; the user needs push and PR access to the org repos.
 set -euo pipefail
 
 ORG="${1:?Usage: install.sh <github-org> [--dry-run] [--only repo1,repo2]}"
@@ -31,20 +31,20 @@ gh repo list "$ORG" --limit 1000 --no-archived --source --json name,defaultBranc
   git clone --quiet --depth 1 "https://github.com/$ORG/$NAME.git" "$DIR" 2>/dev/null || { echo "SKIP $NAME (clone fail)"; continue; }
   cd "$DIR"
 
-  if [ ! -f package.json ]; then echo "SKIP $NAME (Node.js repo nahi)"; cd "$TMP"; continue; fi
-  if [ -f .github/workflows/perf-test.yml ]; then echo "SKIP $NAME (pehle se laga hai)"; cd "$TMP"; continue; fi
+  if [ ! -f package.json ]; then echo "SKIP $NAME (not a Node.js repo)"; cd "$TMP"; continue; fi
+  if [ -f .github/workflows/perf-test.yml ]; then echo "SKIP $NAME (already installed)"; cd "$TMP"; continue; fi
 
   mkdir -p .github/workflows
   sed "s/__ORG__/$ORG/g" "$HERE/templates/perf-test.yml" > .github/workflows/perf-test.yml
 
   if [ -f .github/pull_request_template.md ]; then
-    # Pehle se template hai: overwrite nahi, perf section jod do
+    # A template already exists: do not overwrite it, append the perf section
     { echo; sed -n '/^## Perf test/,$p' "$HERE/templates/pull_request_template.md"; } >> .github/pull_request_template.md
   else
     cp "$HERE/templates/pull_request_template.md" .github/pull_request_template.md
   fi
 
-  if [ "$DRY" = 1 ]; then echo "DRY-RUN $NAME: workflow + template add hota"; cd "$TMP"; continue; fi
+  if [ "$DRY" = 1 ]; then echo "DRY-RUN $NAME: would add workflow + template"; cd "$TMP"; continue; fi
 
   git checkout -q -b "$BRANCH"
   git add .github
@@ -52,7 +52,7 @@ gh repo list "$ORG" --limit 1000 --no-archived --source --json name,defaultBranc
   git push -q origin "$BRANCH"
   gh pr create --repo "$ORG/$NAME" --base "$DEFAULT" --head "$BRANCH" \
     --title "Add PR performance test pipeline" \
-    --body "Is PR ke merge hone ke baad PR description me \`perf\` block likhne par JMeter + Clinic.js perf test apne aap chalega aur Slack me result aayega. Details: https://github.com/$ORG/perf-pipeline" >/dev/null
+    --body "After this PR is merged, a JMeter + Clinic.js performance test runs automatically on every PR whose description contains a \`perf\` block, and the result is posted to Slack. Details: https://github.com/$ORG/perf-pipeline" >/dev/null
   echo "PR OPENED $NAME"
   cd "$TMP"
 done

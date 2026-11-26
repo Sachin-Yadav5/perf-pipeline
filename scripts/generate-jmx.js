@@ -1,10 +1,10 @@
-// config.json se JMeter test plan (.jmx) banata hai. Har API ka apna thread group; sab parallel chalte hain.
+// Builds the JMeter test plan (.jmx) from config.json. Each API gets its own thread group; all run in parallel.
 const fs = require('fs');
 const path = require('path');
 const { OUT, CONFIG_FILE, readJson, escapeHtml: x } = require('./common');
 
 const cfg = readJson(CONFIG_FILE);
-if (!cfg) throw new Error('config.json nahi mila');
+if (!cfg) throw new Error('config.json not found');
 
 const headerManager = (headers) => {
   const entries = Object.entries(headers || {});

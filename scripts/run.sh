@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# App ko Clinic.js ke under start karta hai, port ready hone par JMeter load deta hai,
-# phir Clinic ko SIGINT dekar band karta hai taaki wo profile report bana de.
-# (Clinic ka --on-port naye Node versions par toot jata hai, isliye port khud poll karte hain.)
+# Starts the app under Clinic.js, runs the JMeter load once the port is ready,
+# then stops Clinic with SIGINT so that it generates its profile report.
+# (Clinic's --on-port mode is broken on newer Node versions, so the port is polled here.)
 set -uo pipefail
 
 OUT=.perf/out
 export PORT="${PORT:-3000}"
 export NODE_ENV="${NODE_ENV:-production}"
-export NO_INSIGHT=1 NO_UPDATE_NOTIFIER=1   # clinic ka interactive analytics prompt CI me hang/exit karata hai
-PERF_HOME="${PERF_HOME:?PERF_HOME set nahi hai}"
+export NO_INSIGHT=1 NO_UPDATE_NOTIFIER=1   # Clinic's interactive analytics prompt makes it exit in CI
+PERF_HOME="${PERF_HOME:?PERF_HOME is not set}"
 LOAD_SCRIPT="${LOAD_SCRIPT:-$PERF_HOME/scripts/jmeter.sh}"
 READY_TIMEOUT="${READY_TIMEOUT:-60}"
 
@@ -18,7 +18,7 @@ echo "Starting under Clinic.js: $START_CMD (PORT=$PORT)"
 rm -rf "$OUT/jmeter-report" "$OUT/results.jtl" "$OUT/clinic"
 mkdir -p "$OUT/clinic"
 
-# $START_CMD jaan-boojhkar unquoted hai taaki "node server.js" alag args me tut jaye
+# $START_CMD is intentionally unquoted so that "node server.js" splits into separate arguments
 "$PERF_HOME/node_modules/.bin/clinic" doctor --dest "$OUT/clinic" -- $START_CMD > "$OUT/app.log" 2>&1 &
 CLINIC_PID=$!
 
@@ -39,12 +39,12 @@ for _ in $(seq 1 "$READY_TIMEOUT"); do
 done
 
 if [ "$ready" -ne 1 ]; then
-  echo "App port $PORT par ready nahi hui. App log:"
+  echo "App did not become ready on port $PORT. App log:"
   tail -n 40 "$OUT/app.log" || true
   exit 1
 fi
 
-echo "App ready, load shuru..."
+echo "App is ready, starting the load test..."
 bash "$LOAD_SCRIPT"
 LOAD_RC=$?
 
@@ -53,5 +53,5 @@ trap - EXIT
 echo "Clinic report generation done"
 tail -n 5 "$OUT/app.log" || true
 
-test -s "$OUT/results.jtl" || { echo "JMeter results nahi bane"; exit 1; }
+test -s "$OUT/results.jtl" || { echo "JMeter produced no results"; exit 1; }
 exit "$LOAD_RC"

@@ -3,22 +3,22 @@ description: JMeter load test + Clinic.js profiling on PR, with job summary, art
 
 inputs:
   slack-webhook-url:
-    description: Slack Incoming Webhook URL (optional; na ho to sirf log me print hota hai)
+    description: Slack Incoming Webhook URL (optional; if empty the message is only printed to the log)
     required: false
     default: ""
   node-version:
-    description: Node version jo app build/run ke liye use hogi
+    description: Node version used to build and run the app
     required: false
     default: "20"
   jmeter-version:
     required: false
     default: "5.6.3"
   max-apis:
-    description: Ek PR me max kitni APIs
+    description: Maximum number of APIs per PR
     required: false
     default: "20"
   max-total-users:
-    description: Sab APIs ke users ka total (sab parallel chalti hain)
+    description: Maximum total users across all APIs (they run in parallel)
     required: false
     default: "500"
 
@@ -46,7 +46,6 @@ runs:
       shell: bash
       env:
         PR_BODY: ${{ github.event.pull_request.body }}
-        HAS_LABEL: ${{ contains(github.event.pull_request.labels.*.name, 'perf-test') }}
       run: node "$PERF_HOME/scripts/parse-config.js"
 
     - uses: actions/setup-java@v5

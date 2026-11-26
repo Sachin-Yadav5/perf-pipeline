@@ -1,4 +1,4 @@
-// Clinic.js doctor ke binary processstat data se CPU (%) aur memory (RSS, MB) ka avg / peak nikalta hai.
+// Reads the Clinic.js doctor binary processstat data and returns avg / peak CPU (%) and memory (RSS, MB).
 const fs = require('fs');
 const path = require('path');
 
@@ -15,7 +15,7 @@ async function readClinicMetrics(clinicDir) {
   try {
     Decoder = require(require.resolve('@clinic/doctor/format/process-stat-decoder.js', { paths: [__dirname] }));
   } catch (e) {
-    console.error('Clinic decoder load nahi hua:', e.message);
+    console.error('Could not load the Clinic decoder:', e.message);
     return null;
   }
 
@@ -32,7 +32,7 @@ async function readClinicMetrics(clinicDir) {
   });
   if (!rows.length) return null;
 
-  const cpu = rows.map((r) => r.cpu * 100); // clinic cpu ko fraction me rakhta hai
+  const cpu = rows.map((r) => r.cpu * 100); // Clinic stores CPU as a fraction
   const mem = rows.map((r) => r.memory.rss / 1024 / 1024);
   const avg = (a) => a.reduce((t, v) => t + v, 0) / a.length;
   const max = (a) => a.reduce((m, v) => (v > m ? v : m), -Infinity);
